@@ -1,58 +1,58 @@
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
 import { supabase } from '@/lib/supabase';
-import { DiseaseCardContentSchema } from '@/lib/schemas';
-
-// Allow this API to run for up to 60 seconds (karena AI mikirnya agak lama)
-export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
     const { topic } = await req.json();
 
-    if (!topic) {
-      return new Response('Topic is required', { status: 400 });
-    }
+    console.log("⚠️ MENGGUNAKAN MODE OFFLINE (DUMMY DATA)");
 
-    console.log(`🤖 Generating card for: ${topic}...`);
+    // Data Palsu (Pura-pura dari AI)
+    const dummyContent = {
+      wiki: {
+        definition: "Penyakit simulasi untuk testing game.",
+        etiology: "Bug pada kodingan atau API Key habis.",
+        clinical_signs: ["Pusing 7 keliling", "Keyboard ingin dibanting", "Layar dipelototi"],
+        pathophysiology_summary: "Terjadi gangguan aliran data dari server ke klien.",
+        treatment_guideline: "Istirahat sejenak dan minum kopi.",
+      },
+      simulation: {
+        chief_complaint_pool: [
+            "Dok, kepala saya pusing mikirin error ini.",
+            "Badan saya lemas gara-gara koding error.",
+            "Tolong dok, sembuhkan error saya."
+        ],
+        vital_signs_rules: {
+          temperature: { min: 38.0, max: 40.0 },
+          bp_systolic: { min: 90, max: 110 },
+          heart_rate: { min: 100, max: 120 },
+        },
+        lab_rules: {
+          thrombocytes: { min: 100000, max: 150000, unit: "/uL" },
+          leukocytes: { min: 12000, max: 18000, unit: "/uL" },
+          hemoglobin: { min: 10, max: 12, unit: "g/dL" },
+        },
+        diagnosis_answer: "Coding Fatigue Syndrome",
+      }
+    };
 
-    // 1. Panggil OpenAI dengan Schema yang ketat
-    const { object } = await generateObject({
-      model: openai('gpt-4o-mini'), // atau gpt-3.5-turbo kalau mau hemat
-      schema: DiseaseCardContentSchema,
-      prompt: `Buat materi medis lengkap dan logika simulasi game untuk penyakit: "${topic}".
-      
-      PENTING:
-      - Gunakan Bahasa Indonesia untuk semua teks narasi.
-      - Pastikan data medis akurat (range TTV dan Lab).
-      - Untuk 'chief_complaint_pool', gunakan bahasa pasien awam yang natural (contoh: 'Dok, perut saya melilit').`,
-    });
-
-    console.log("✅ AI Generation Success!");
-
-    // 2. Simpan hasil ke Supabase (Status: draft)
+    // Simpan ke Supabase
     const { data, error } = await supabase
       .from('disease_cards')
       .insert({
-        title: topic, // Sementara judulnya sama dengan topik request
-        category: 'Uncategorized', // Nanti diedit admin
-        difficulty: 'Medium',      // Default
-        status: 'draft',
-        content: object,           // JSON hasil AI
+        title: topic || "Kasus Test Offline",
+        category: 'Test',
+        difficulty: 'Easy',
+        status: 'published',
+        content: dummyContent,
       })
       .select()
       .single();
 
-    if (error) {
-      console.error("DB Error:", error);
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
 
-    // 3. Kembalikan hasil ke user
-    return Response.json({ success: true, cardId: data.id, data: object });
+    return Response.json({ success: true, cardId: data.id });
 
   } catch (error: any) {
-    console.error("API Error:", error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
