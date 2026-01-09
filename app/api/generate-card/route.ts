@@ -1,49 +1,41 @@
+import { openai } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
 import { supabase } from '@/lib/supabase';
+import { DiseaseCardContentSchema } from '@/lib/schemas';
+
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
     const { topic } = await req.json();
 
-    console.log("⚠️ MENGGUNAKAN MODE OFFLINE (DUMMY DATA)");
+    if (!topic) return new Response('Topic required', { status: 400 });
 
-    // Data Palsu (Pura-pura dari AI)
-    const dummyContent = {
-      wiki: {
-        definition: "Penyakit simulasi untuk testing game.",
-        etiology: "Bug pada kodingan atau API Key habis.",
-        clinical_signs: ["Pusing 7 keliling", "Keyboard ingin dibanting", "Layar dipelototi"],
-        pathophysiology_summary: "Terjadi gangguan aliran data dari server ke klien.",
-        treatment_guideline: "Istirahat sejenak dan minum kopi.",
-      },
-      simulation: {
-        chief_complaint_pool: [
-            "Dok, kepala saya pusing mikirin error ini.",
-            "Badan saya lemas gara-gara koding error.",
-            "Tolong dok, sembuhkan error saya."
-        ],
-        vital_signs_rules: {
-          temperature: { min: 38.0, max: 40.0 },
-          bp_systolic: { min: 90, max: 110 },
-          heart_rate: { min: 100, max: 120 },
-        },
-        lab_rules: {
-          thrombocytes: { min: 100000, max: 150000, unit: "/uL" },
-          leukocytes: { min: 12000, max: 18000, unit: "/uL" },
-          hemoglobin: { min: 10, max: 12, unit: "g/dL" },
-        },
-        diagnosis_answer: "Coding Fatigue Syndrome",
-      }
-    };
+    console.log(`🕵️‍♂️ Generating Detective Case: ${topic}...`);
 
-    // Simpan ke Supabase
+    const { object } = await generateObject({
+      model: openai('gpt-4o-mini'), 
+      schema: DiseaseCardContentSchema,
+      prompt: `Buat kasus simulasi medis TIPE DETEKTIF untuk penyakit: "${topic}".
+      
+      INSTRUKSI GAMEPLAY:
+      1. 'interview_questions': 
+         - Buat dialog interaktif. Dokter harus memilih pertanyaan yang tepat.
+         - Wajib ada pertanyaan JEBAKAN (misal: nanya hal gak penting) yang jawabannya bikin bingung.
+      2. 'diagnosis_options': 
+         - Berikan 4 pilihan diagnosa yang MIRIP. Jangan buat pilihan yang terlalu gampang.
+         - Pemain harus mikir keras bedanya A dan B.
+      3. Bahasa: Indonesia (Casual tapi sopan untuk pasien).`,
+    });
+
     const { data, error } = await supabase
       .from('disease_cards')
       .insert({
-        title: topic || "Kasus Test Offline",
-        category: 'Test',
-        difficulty: 'Easy',
+        title: topic,
+        category: 'Medical Detective',
+        difficulty: 'Hard',
         status: 'published',
-        content: dummyContent,
+        content: object,
       })
       .select()
       .single();
@@ -53,6 +45,7 @@ export async function POST(req: Request) {
     return Response.json({ success: true, cardId: data.id });
 
   } catch (error: any) {
+    console.error("API Error:", error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
